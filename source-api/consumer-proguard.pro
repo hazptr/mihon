@@ -6,6 +6,9 @@
 -keep class eu.kanade.tachiyomi.source.ConfigurableSource { public protected *; }
 -keep class eu.kanade.tachiyomi.source.SourceFactory { public protected *; }
 -keep class eu.kanade.tachiyomi.source.UnmeteredSource { public protected *; }
+-keep class eu.kanade.tachiyomi.source.model.AudioCue { public protected *; }
+-keep class eu.kanade.tachiyomi.source.model.AudioTrack { public protected *; }
+-keep class eu.kanade.tachiyomi.source.model.ChapterAudio { public protected *; }
 -keep class eu.kanade.tachiyomi.source.model.Filter { public protected *; }
 -keep class eu.kanade.tachiyomi.source.model.Filter$* { public protected *; }
 -keep class eu.kanade.tachiyomi.source.model.FilterList { public protected *; }
