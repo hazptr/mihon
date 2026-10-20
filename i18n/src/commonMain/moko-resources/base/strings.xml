@@ -429,6 +429,9 @@
     <string name="pref_flash_style_white_black">White and Black</string>
     <string name="pref_double_tap_anim_speed">Double tap animation speed</string>
     <string name="pref_show_page_number">Show page number</string>
+    <string name="pref_bgm_enabled">Play background music</string>
+    <string name="pref_bgm_enabled_summary">For sources that provide it</string>
+    <string name="pref_bgm_loop">Repeat background music</string>
     <string name="pref_vertical_navigator">Use vertical chapter navigator in</string>
     <string name="pref_vertical_navigator_height">Vertical navigator height</string>
     <string name="pref_webtoon_vertical_navigator_on_left">Place vertical navigator on the left side</string>
@@ -582,6 +585,8 @@
     <string name="auto_download_while_reading">Auto download while reading</string>
     <string name="download_ahead_info">Only works if the current chapter + the next one are already downloaded.</string>
     <string name="save_chapter_as_cbz">Save as CBZ archive</string>
+    <string name="pref_download_bgm">Download background music</string>
+    <string name="pref_download_bgm_summary">Store audio with downloaded chapters so it plays offline. Adds roughly a fifth to the size of a chapter that has it.</string>
     <string name="pref_download_concurrent_sources">Concurrent source downloads</string>
     <string name="pref_download_concurrent_pages">Concurrent page downloads</string>
     <string name="pref_download_concurrent_pages_summary">Pages downloaded simultaneously per source</string>

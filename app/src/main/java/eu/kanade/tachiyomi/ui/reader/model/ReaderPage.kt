@@ -12,6 +12,9 @@ open class ReaderPage(
 
     open lateinit var chapter: ReaderChapter
 
+    /** Backing file name, when known. Lets offline loaders match bgm cues by name, not index. */
+    var name: String? = null
+
     /** Set by a viewer before the download; filled during [Page.State.DownloadImage]. */
     @Volatile
     var downloadStream: DownloadStream? = null

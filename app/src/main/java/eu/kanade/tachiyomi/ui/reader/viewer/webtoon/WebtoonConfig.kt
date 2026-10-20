@@ -42,7 +42,14 @@ class WebtoonConfig(
 
     val theme = readerPreferences.readerTheme.get()
 
+    /** Mirrored so the scroll listener can skip its audio work without reading a preference. */
+    var bgmEnabled = false
+        private set
+
     init {
+        readerPreferences.bgmEnabled
+            .register({ bgmEnabled = it })
+
         readerPreferences.cropBordersWebtoon
             .register({ imageCropBorders = it }, { imagePropertyChangedListener?.invoke() })
 

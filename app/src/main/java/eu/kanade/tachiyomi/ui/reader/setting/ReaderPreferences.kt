@@ -41,6 +41,18 @@ class ReaderPreferences(
 
     val showPageNumber: Preference<Boolean> = preferenceStore.getBoolean("pref_show_page_number_key", true)
 
+    /** Play background music on sources that provide it. Off by default: unexpected audio in a
+     *  reader is worse than missing audio. */
+    val bgmEnabled: Preference<Boolean> = preferenceStore.getBoolean("pref_bgm_enabled", false)
+
+    /**
+     * Repeat a track for as long as its pages are on screen.
+     *
+     * Off by default, matching the source site: a track is scored for a scene, not for however
+     * long the reader spends on it.
+     */
+    val bgmLoop: Preference<Boolean> = preferenceStore.getBoolean("pref_bgm_loop", false)
+
     val verticalNavigator: Preference<Set<ReadingMode>> = preferenceStore.getEnumSet(
         "pref_vertical_navigator",
         emptySet(),

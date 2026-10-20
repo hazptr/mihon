@@ -62,6 +62,19 @@ internal fun ColumnScope.GeneralPage(viewModel: ReaderSettingsViewModel) {
         pref = viewModel.preferences.showPageNumber,
     )
 
+    val bgmEnabled by viewModel.preferences.bgmEnabled.collectAsState()
+    CheckboxItem(
+        label = stringResource(MR.strings.pref_bgm_enabled),
+        pref = viewModel.preferences.bgmEnabled,
+    )
+
+    if (bgmEnabled) {
+        CheckboxItem(
+            label = stringResource(MR.strings.pref_bgm_loop),
+            pref = viewModel.preferences.bgmLoop,
+        )
+    }
+
     val verticalNavigatorModes by viewModel.preferences.verticalNavigator.collectAsState()
 
     SettingsChipRow(MR.strings.pref_vertical_navigator) {

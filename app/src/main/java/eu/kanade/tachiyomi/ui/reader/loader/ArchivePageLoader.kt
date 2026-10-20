@@ -19,6 +19,7 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
             .mapIndexed { i, entry ->
                 ReaderPage(i).apply {
                     stream = { reader.getInputStream(entry.name)!! }
+                    name = entry.name.substringAfterLast('/')
                     status = Page.State.Ready
                 }
             }

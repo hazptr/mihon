@@ -345,6 +345,7 @@ class ReaderActivity : BaseActivity() {
 
     override fun onPause() {
         viewModel.saveHistory()
+        viewModel.bgmPlayer.pause()
         super.onPause()
     }
 
@@ -355,6 +356,7 @@ class ReaderActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.restartReadTimer()
+        viewModel.bgmPlayer.resume()
         setMenuVisibility(viewModel.state.value.menuVisible)
     }
 
@@ -688,6 +690,11 @@ class ReaderActivity : BaseActivity() {
      */
     fun onPageSelected(page: ReaderPage) {
         viewModel.onPageSelected(page)
+    }
+
+    /** Called from the viewer when the page that background music should follow changes. */
+    fun onBgmPageChanged(page: ReaderPage) {
+        viewModel.onBgmPageChanged(page)
     }
 
     /**

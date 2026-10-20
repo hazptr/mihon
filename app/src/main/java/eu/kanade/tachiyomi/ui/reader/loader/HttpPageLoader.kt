@@ -1,11 +1,13 @@
 package eu.kanade.tachiyomi.ui.reader.loader
 
 import eu.kanade.domain.chapter.model.toSChapter
+import eu.kanade.tachiyomi.data.cache.BgmCache
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -25,6 +27,8 @@ internal class HttpPageLoader(
     private val chapter: ReaderChapter,
     private val source: HttpSource,
     private val chapterCache: ChapterCache,
+    private val bgmCache: BgmCache,
+    private val readerPreferences: ReaderPreferences,
     private val appScope: CoroutineScope,
     private val canLoadAhead: () -> Boolean,
 ) : PageLoader() {
@@ -52,6 +56,7 @@ internal class HttpPageLoader(
         return pages.mapIndexed { index, page ->
             // Don't trust sources and use our own indexing
             ReaderPage(index, page.url, page.imageUrl).also {
+                page.copySourceDataInto(it)
                 // Loading starts below, before ChapterLoader gets to set this, and chapter is a lateinit
                 it.chapter = chapter
             }
@@ -112,8 +117,12 @@ internal class HttpPageLoader(
         chapter.pages?.let { pages ->
             appScope.launch(Dispatchers.IO) {
                 try {
-                    // Convert to pages without reader information
-                    val pagesToSave = pages.map { Page(it.index, it.url, it.imageUrl) }
+                    // Convert to pages without reader information. Audio has to be carried
+                    // across explicitly: it is a source-provided property, not reader state, and
+                    // dropping it here silently un-scores every chapter on its second read.
+                    val pagesToSave = pages.map { page ->
+                        Page(page.index, page.url, page.imageUrl).also(page::copySourceDataInto)
+                    }
                     chapterCache.putPageListToCache(chapter.chapter, pagesToSave)
                 } catch (e: Throwable) {
                     if (e is CancellationException) {
@@ -217,6 +226,21 @@ internal class HttpPageLoader(
     }
 
     /**
+     * Fetches the track covering [page], if the reader is going to play it.
+     *
+     * Hung off page loading rather than scheduled separately so it inherits the preload window,
+     * priority and cancellation the reader already applies to images: by the time a cue is
+     * scrolled into, its track was fetched alongside the pages around it.
+     */
+    private suspend fun preloadAudio(page: ReaderPage) {
+        if (!readerPreferences.bgmEnabled.get()) return
+        val audio = page.chapter.pages?.firstNotNullOfOrNull { it.chapterAudio } ?: return
+        val track = audio.trackAt(page.index) ?: return
+        if (bgmCache.find(track.id) != null) return
+        bgmCache.fetch(track, source)
+    }
+
+    /**
      * Loads the page, retrieving the image URL and downloading the image if necessary.
      * Downloaded images are stored in the chapter cache.
      *
@@ -246,6 +270,9 @@ internal class HttpPageLoader(
             page.downloadStream = null
             page.stream = { chapterCache.getImageFile(imageUrl).inputStream() }
             page.status = Page.State.Ready
+
+            // After the image, so a track never delays the page it belongs to.
+            preloadAudio(page)
         } catch (e: Throwable) {
             page.downloadStream = null
             if (e is CancellationException) {

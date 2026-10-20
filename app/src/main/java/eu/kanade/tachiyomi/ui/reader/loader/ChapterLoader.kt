@@ -2,15 +2,18 @@ package eu.kanade.tachiyomi.ui.reader.loader
 
 import android.content.Context
 import eu.kanade.domain.chapter.model.toSChapter
+import eu.kanade.tachiyomi.data.cache.BgmCache
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import mihon.core.archive.archiveReader
 import mihon.core.archive.epubReader
 import tachiyomi.core.common.i18n.stringResource
@@ -29,6 +32,9 @@ class ChapterLoader(
     private val downloadManager: DownloadManager,
     private val downloadProvider: DownloadProvider,
     private val chapterCache: ChapterCache,
+    private val bgmCache: BgmCache,
+    private val readerPreferences: ReaderPreferences,
+    private val json: Json,
     private val appScope: CoroutineScope,
     private val canLoadAhead: () -> Boolean,
     private val manga: Manga,
@@ -98,6 +104,9 @@ class ChapterLoader(
                 source,
                 downloadManager,
                 downloadProvider,
+                bgmCache,
+                readerPreferences,
+                json,
             )
             source is LocalSource -> source.getFormat(chapter.chapter.toSChapter()).let { format ->
                 when (format) {
@@ -106,7 +115,15 @@ class ChapterLoader(
                     is Format.Epub -> EpubPageLoader(format.file.epubReader(context))
                 }
             }
-            source is HttpSource -> HttpPageLoader(chapter, source, chapterCache, appScope, canLoadAhead)
+            source is HttpSource -> HttpPageLoader(
+                chapter,
+                source,
+                chapterCache,
+                bgmCache,
+                readerPreferences,
+                appScope,
+                canLoadAhead,
+            )
             source is StubSource -> error(context.stringResource(MR.strings.source_not_installed, source.toString()))
             else -> error(context.stringResource(MR.strings.loader_not_implemented_error))
         }
