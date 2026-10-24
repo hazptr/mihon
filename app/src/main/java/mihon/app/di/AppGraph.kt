@@ -8,6 +8,7 @@ import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.ViewModelGraph
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.extension.interactor.TrustExtension
+import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.domain.track.service.DelayedTrackingUpdateWorker
@@ -49,9 +50,12 @@ import nl.adaptivity.xmlutil.serialization.XML
 import tachiyomi.domain.backup.service.BackupPreferences
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.ResetCategoryFlags
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetFavorites
+import tachiyomi.domain.manga.interactor.GetManga
+import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.manga.interactor.ResetViewerFlags
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.storage.service.StoragePreferences
@@ -124,6 +128,12 @@ interface AppGraph : ViewModelGraph {
     val upsertTrack: UpsertTrack
 
     val getExtensionStoreCountAsFlow: GetExtensionStoreCountAsFlow
+
+    // Test driver (debug builds)
+    val getManga: GetManga
+    val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId
+    val getChaptersByMangaId: GetChaptersByMangaId
+    val updateManga: UpdateManga
 
     @DependencyGraph.Factory
     fun interface Factory {
