@@ -63,6 +63,7 @@ import tachiyomi.domain.source.interactor.GetRemoteManga
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
@@ -126,7 +127,13 @@ internal object TestDriver {
             } catch (e: Exception) {
                 continue
             }
-            workers.execute { handle(socket) }
+            workers.execute {
+                try {
+                    handle(socket)
+                } catch (e: IOException) {
+                    // kxd hung up before the reply
+                }
+            }
         }
     }
 
