@@ -22,6 +22,7 @@
 
 # Final classes and top-level functions extensions only call into
 -keep,allowoptimization class eu.kanade.tachiyomi.AppInfo { public protected *; }
+-keep,allowoptimization class eu.kanade.tachiyomi.network.AppTransport { public protected *; }
 -keep,allowoptimization class eu.kanade.tachiyomi.network.HttpException { public protected *; }
 -keep,allowoptimization class eu.kanade.tachiyomi.network.JavaScriptEngine { public protected *; }
 -keep,allowoptimization class eu.kanade.tachiyomi.network.NetworkHelper { public protected *; }

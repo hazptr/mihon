@@ -11,23 +11,27 @@ import java.io.IOException
 /**
  * The cookie and redirect half of OkHttp's BridgeInterceptor and
  * RetryAndFollowUpInterceptor, for requests that Cronet answers before OkHttp's own core runs.
- * Must sit directly before CronetInterceptor, which must be built with redirects off.
+ * [transport] is the CronetInterceptor, built with redirects off.
  */
 class CronetCookieInterceptor(
     private val cookieJar: CookieJar,
-    private val followRedirects: () -> Boolean,
+    private val followRedirects: Boolean,
+    private val transport: Interceptor,
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         var request = chain.request()
         var prior: Response? = null
         repeat(MAX_REDIRECTS + 1) {
-            val response = chain.proceed(withCookies(request))
+            val hop = withCookies(request)
+            val response = transport.intercept(object : Interceptor.Chain by chain {
+                override fun request() = hop
+            })
                 .newBuilder()
                 .priorResponse(prior)
                 .build()
             cookieJar.saveFromResponse(request.url, Cookie.parseAll(request.url, response.headers))
-            val next = if (followRedirects()) followUp(request, response) else null
+            val next = if (followRedirects) followUp(request, response) else null
             if (next == null) return response
             prior = response.newBuilder().body(ResponseBody.EMPTY).build()
             response.close()

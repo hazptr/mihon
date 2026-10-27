@@ -14,6 +14,8 @@ import kotlinx.coroutines.CoroutineScope
 import logcat.LogPriority
 import mihon.core.metro.AppCoroutineScope
 import okhttp3.Cache
+import okhttp3.CookieJar
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.chromium.net.CronetEngine
@@ -106,25 +108,24 @@ class NetworkHelper(
     }
 
     val client: OkHttpClient by lazy {
-        val builder = clientBuilder()
+        clientBuilder()
             .addInterceptor(
                 CloudflareInterceptor(context, cookieJar, scope, ::defaultUserAgentProvider),
             )
-        cronetEngine?.let { engine ->
-            // Cronet answers the request here, so OkHttp's cookie jar, redirects, cache, DoH and
-            // network interceptors never run. Cookies and redirects are bridged back in, and with
-            // verbose logging on, requests are logged here instead (headers as the app set them).
-            builder.addInterceptor(CronetCookieInterceptor(cookieJar) { client.followRedirects })
-            if (preferences.verboseLogging.get()) {
-                builder.addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.HEADERS })
-            }
-            builder.addInterceptor(
-                CronetInterceptor.newBuilder(engine)
-                    .setRedirectStrategy(RedirectStrategy.withoutRedirects())
-                    .build(),
-            )
-        }
-        builder.build()
+            .build()
+    }
+
+    /**
+     * Sends requests through [cronetEngine], for a client to add as its last application interceptor;
+     * null when Cronet is off. OkHttp's cookie handling and redirects are bridged in with [cookieJar] and
+     * [followRedirects].
+     */
+    fun cronetInterceptor(cookieJar: CookieJar, followRedirects: Boolean): Interceptor? {
+        val engine = cronetEngine ?: return null
+        val transport = CronetInterceptor.newBuilder(engine)
+            .setRedirectStrategy(RedirectStrategy.withoutRedirects())
+            .build()
+        return CronetCookieInterceptor(cookieJar, followRedirects, transport)
     }
 
     /**
