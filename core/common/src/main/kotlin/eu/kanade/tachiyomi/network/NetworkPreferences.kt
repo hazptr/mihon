@@ -24,6 +24,8 @@ class NetworkPreferences(
         isDebugBuild,
     )
 
+    val cronet: Preference<Boolean> = preferenceStore.getBoolean("cronet", false)
+
     val dohProvider: Preference<Int> = preferenceStore.getInt("doh_provider", -1)
 
     val defaultUserAgent: Preference<String> = preferenceStore.getString(

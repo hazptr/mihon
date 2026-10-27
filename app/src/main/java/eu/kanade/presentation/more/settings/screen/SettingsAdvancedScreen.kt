@@ -262,6 +262,15 @@ object SettingsAdvancedScreen : SearchableSettings {
                         true
                     },
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = networkPreferences.cronet,
+                    title = stringResource(MR.strings.pref_cronet),
+                    subtitle = stringResource(MR.strings.pref_cronet_summary),
+                    onValueChanged = {
+                        context.toast(MR.strings.requires_app_restart)
+                        true
+                    },
+                ),
                 Preference.PreferenceItem.EditTextPreference(
                     preference = userAgentPref,
                     title = stringResource(MR.strings.pref_user_agent_string),

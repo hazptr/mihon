@@ -33,6 +33,11 @@ dependencies {
     api(libs.okhttp.dnsOverHttps)
     api(libs.okio)
 
+    // OkHttp over Cronet (Chromium network stack), embedded so it needs no Play services
+    api(libs.cronet.api)
+    implementation(libs.cronet.bundled)
+    implementation(libs.cronet.okhttp)
+
     api(libs.apollo)
 
     implementation(libs.image.decoder)
