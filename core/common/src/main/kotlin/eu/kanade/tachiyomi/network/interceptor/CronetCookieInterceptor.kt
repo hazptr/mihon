@@ -6,12 +6,18 @@ import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
+import org.chromium.net.NetworkException
 import java.io.IOException
+import java.net.Proxy
+import java.net.ProxySelector
 
 /**
  * The cookie and redirect half of OkHttp's BridgeInterceptor and
  * RetryAndFollowUpInterceptor, for requests that Cronet answers before OkHttp's own core runs.
  * [transport] is the CronetInterceptor, built with redirects off.
+ *
+ * Chromium gives an HTTP proxy 10 seconds to answer CONNECT on Android, where OkHttp waits for its read
+ * timeout. A request whose tunnel times out was never sent, so it goes through OkHttp's own connection instead.
  */
 class CronetCookieInterceptor(
     private val cookieJar: CookieJar,
@@ -24,9 +30,14 @@ class CronetCookieInterceptor(
         var prior: Response? = null
         repeat(MAX_REDIRECTS + 1) {
             val hop = withCookies(request)
-            val response = transport.intercept(object : Interceptor.Chain by chain {
-                override fun request() = hop
-            })
+            val response = try {
+                transport.intercept(object : Interceptor.Chain by chain {
+                    override fun request() = hop
+                })
+            } catch (e: IOException) {
+                if (!isProxyTimeout(hop, e)) throw e
+                chain.proceed(hop)
+            }
                 .newBuilder()
                 .priorResponse(prior)
                 .build()
@@ -38,6 +49,14 @@ class CronetCookieInterceptor(
             request = next
         }
         throw IOException("Too many redirects: $MAX_REDIRECTS")
+    }
+
+    /** Chromium's ERR_TIMED_OUT, which it gives while connecting, with a proxy set for [request]. */
+    private fun isProxyTimeout(request: Request, e: IOException): Boolean {
+        val cause = generateSequence<Throwable>(e) { it.cause }.filterIsInstance<NetworkException>().firstOrNull()
+        if (cause?.cronetInternalErrorCode != ERR_TIMED_OUT) return false
+        val proxies = ProxySelector.getDefault()?.select(request.url.toUri()).orEmpty()
+        return proxies.any { it.type() != Proxy.Type.DIRECT }
     }
 
     /** Like BridgeInterceptor: jar cookies, when there are any, replace a Cookie header set by the caller. */
@@ -75,6 +94,7 @@ class CronetCookieInterceptor(
 
     private companion object {
         const val MAX_REDIRECTS = 20
+        const val ERR_TIMED_OUT = -7
         val REDIRECT_CODES = setOf(300, 301, 302, 303, 307, 308)
     }
 }
