@@ -32,6 +32,14 @@ interface Source {
     val supportsLatest: Boolean
 
     /**
+     * Whether the source leaves the genres the user hides app wide out of its results,
+     * see [eu.kanade.tachiyomi.AppInfo.getHiddenGenres].
+     *
+     * @since tachiyomix 1.7
+     */
+    val supportsHiddenGenres: Boolean get() = false
+
+    /**
      * Returns the list of filters for the source.
      */
     fun getFilterList(): FilterList = FilterList()

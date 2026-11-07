@@ -63,6 +63,8 @@ class SourcePreferences(
         SetMigrateSorting.Direction.ASCENDING,
     )
 
+    val hiddenGenres: Preference<Set<String>> = preferenceStore.getStringSet("hidden_genres", emptySet())
+
     val hideInLibraryItems: Preference<Boolean> = preferenceStore.getBoolean("browse_hide_in_library_items", false)
 
     val extensionRepos: Preference<Set<String>> = preferenceStore.getStringSet("extension_repos", emptySet())
