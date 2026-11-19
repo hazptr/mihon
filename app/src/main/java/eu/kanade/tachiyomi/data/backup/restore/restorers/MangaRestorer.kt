@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.backup.restore.restorers
 import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
+import eu.kanade.tachiyomi.data.track.TrackerManager
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import tachiyomi.domain.backup.model.RestoredHistory
@@ -17,6 +18,7 @@ class MangaRestorer(
     private val restoreRepository: RestoreRepository,
     private val getCategories: GetCategories,
     private val fetchInterval: FetchInterval,
+    private val trackerManager: TrackerManager,
 ) {
 
     private val timeZone = TimeZone.currentSystemDefault()
@@ -46,7 +48,9 @@ class MangaRestorer(
                     val history = it.getHistoryImpl()
                     RestoredHistory(it.url, history.readAt, history.readDuration)
                 },
-                tracks = backupManga.tracking.map { it.getTrackImpl() },
+                tracks = backupManga.tracking
+                    .filter { trackerManager.get(it.syncId.toLong()) != null }
+                    .map { it.getTrackImpl() },
                 excludedScanlators = backupManga.excludedScanlators,
             )
         }
