@@ -1,6 +1,7 @@
 package eu.kanade.domain.manga.interactor
 
 import dev.zacsweers.metro.Inject
+import eu.kanade.domain.source.interactor.SyncWithSource
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -15,6 +16,7 @@ import kotlin.time.Instant
 class UpdateManga(
     private val mangaRepository: MangaRepository,
     private val fetchInterval: FetchInterval,
+    private val syncWithSource: SyncWithSource,
 ) {
 
     suspend fun await(mangaUpdate: MangaUpdate): Boolean {
@@ -66,6 +68,6 @@ class UpdateManga(
             true -> MangaUpdate(mangaId) { favoriteAt = Clock.System.now() }
             false -> MangaUpdate(mangaId) { favoriteAt = null }
         }
-        return mangaRepository.update(update)
+        return mangaRepository.update(update).also { if (it) syncWithSource.pushFavorite(mangaId, favorite) }
     }
 }

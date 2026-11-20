@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.model.AutoTrackState
+import eu.kanade.presentation.browse.components.BaseSourceItem
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.Tracker
@@ -51,6 +53,7 @@ import eu.kanade.tachiyomi.data.track.hikka.HikkaApi
 import eu.kanade.tachiyomi.data.track.mangabaka.MangaBakaApi
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeListApi
 import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
+import eu.kanade.tachiyomi.source.SyncableSource
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.Dispatchers
@@ -63,9 +66,11 @@ import mihon.icons.materialsymbols.automirroredrounded.Help
 import mihon.icons.materialsymbols.rounded.Close
 import mihon.icons.materialsymbols.roundedfilled.Visibility
 import mihon.icons.materialsymbols.roundedfilled.VisibilityOff
+import tachiyomi.domain.source.model.Source
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.collectAsState
 
 @Serializable
 data object SettingsTrackingScreen : SearchableSettings {
@@ -89,6 +94,7 @@ data object SettingsTrackingScreen : SearchableSettings {
     override fun getPreferences(): List<Preference> {
         val context = LocalContext.current
         val trackPreferences = remember { context.appGraph.trackPreferences }
+        val sourcePreferences = remember { context.appGraph.sourcePreferences }
         val trackerManager = remember { context.appGraph.trackerManager }
         val sourceManager = remember { context.appGraph.sourceManager }
 
@@ -118,6 +124,9 @@ data object SettingsTrackingScreen : SearchableSettings {
                 val acceptedSources = (service as EnhancedTracker).getAcceptedSources()
                 installedSources.any { it::class.qualifiedName in acceptedSources }
             }
+        val syncableSources = remember(installedSources) {
+            installedSources.filterIsInstance<SyncableSource>().sortedBy { it.name }
+        }
         var enhancedTrackerInfo = stringResource(MR.strings.enhanced_tracking_info)
         if (enhancedTrackers.second.isNotEmpty()) {
             val missingSourcesInfo = stringResource(
@@ -201,6 +210,28 @@ data object SettingsTrackingScreen : SearchableSettings {
                             )
                         } + listOf(Preference.PreferenceItem.InfoPreference(enhancedTrackerInfo))
                     ),
+            ),
+            Preference.PreferenceGroup(
+                title = stringResource(MR.strings.source_sync),
+                visible = syncableSources.isNotEmpty(),
+                preferenceItems = syncableSources.map { source ->
+                    Preference.PreferenceItem.CustomPreference(title = source.name) {
+                        val preference = remember(source.id) { sourcePreferences.syncWithSource(source.id) }
+                        val enabled by preference.collectAsState()
+                        BaseSourceItem(
+                            source = Source(
+                                source.id,
+                                source.lang,
+                                source.name,
+                                supportsLatest = false,
+                                isStub = false,
+                            ),
+                            showLanguageInContent = false,
+                            onClickItem = { preference.set(!enabled) },
+                            action = { Switch(checked = enabled, onCheckedChange = null) },
+                        )
+                    }
+                } + Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.source_sync_info)),
             ),
         )
     }

@@ -593,6 +593,8 @@
     <string name="enhanced_services">Enhanced trackers</string>
     <string name="enhanced_services_not_installed">Available but source not installed: %s</string>
     <string name="enhanced_tracking_info">Provides enhanced features for specific sources. Entries are automatically tracked when added to your library.</string>
+    <string name="source_sync">Source sync</string>
+    <string name="source_sync_info">Chapters you mark as read or unread are marked on the source\'s server too, and chapters read there are marked as read here when the entry is refreshed. Sources that keep favorites also get your library additions and removals.</string>
     <string name="track_activity_name">Tracker login</string>
     <string name="refresh_tracker_profile">Refresh tracker profile</string>
     <string name="refresh_tracker_success">%s profile refreshed</string>

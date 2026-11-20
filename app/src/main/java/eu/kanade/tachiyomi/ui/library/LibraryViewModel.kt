@@ -17,6 +17,7 @@ import eu.kanade.core.util.fastFilterNot
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.chapter.interactor.SetReadStatus
 import eu.kanade.domain.manga.interactor.UpdateManga
+import eu.kanade.domain.source.interactor.SyncWithSource
 import eu.kanade.presentation.library.components.LibraryToolbarTitle
 import eu.kanade.presentation.manga.DownloadAction
 import eu.kanade.tachiyomi.data.cache.CoverCache
@@ -90,6 +91,7 @@ class LibraryViewModel(
     private val getBookmarkedChaptersByMangaId: GetBookmarkedChaptersByMangaId,
     private val setReadStatus: SetReadStatus,
     private val updateManga: UpdateManga,
+    private val syncWithSource: SyncWithSource,
     private val setMangaCategories: SetMangaCategories,
     private val preferences: BasePreferences,
     private val libraryPreferences: LibraryPreferences,
@@ -572,7 +574,11 @@ class LibraryViewModel(
                         favoriteAt = null
                     }
                 }
-                updateManga.awaitAll(toDelete)
+                if (updateManga.awaitAll(toDelete)) {
+                    mangas.forEach {
+                        syncWithSource.pushFavorite(it.id, favorite = false)
+                    }
+                }
             }
 
             if (deleteChapters) {

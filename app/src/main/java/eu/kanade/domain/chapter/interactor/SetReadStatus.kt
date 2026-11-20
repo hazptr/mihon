@@ -2,6 +2,7 @@ package eu.kanade.domain.chapter.interactor
 
 import dev.zacsweers.metro.Inject
 import eu.kanade.domain.download.interactor.DeleteDownload
+import eu.kanade.domain.source.interactor.SyncWithSource
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
@@ -17,6 +18,7 @@ class SetReadStatus(
     private val deleteDownload: DeleteDownload,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val syncWithSource: SyncWithSource,
 ) {
 
     private val mapper = { chapter: Chapter, read: Boolean ->
@@ -45,6 +47,8 @@ class SetReadStatus(
             logcat(LogPriority.ERROR, e)
             return Result.InternalError(e)
         }
+
+        syncWithSource.pushRead(chaptersToUpdate.filter { it.read != read }, read)
 
         if (read && downloadPreferences.removeAfterMarkedAsRead.get()) {
             chaptersToUpdate

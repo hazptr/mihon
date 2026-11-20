@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
 import dev.zacsweers.metro.Inject
+import eu.kanade.domain.source.interactor.SyncWithSource
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreWorker
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.library.LibraryUpdateWorker
@@ -44,6 +45,8 @@ class NotificationReceiver : BroadcastReceiver() {
     @Inject private lateinit var getChapter: GetChapter
 
     @Inject private lateinit var updateChapter: UpdateChapter
+
+    @Inject private lateinit var syncWithSource: SyncWithSource
 
     @Inject private lateinit var downloadManager: DownloadManager
 
@@ -166,7 +169,8 @@ class NotificationReceiver : BroadcastReceiver() {
      */
     private fun markAsRead(chapterUrls: Array<String>, mangaId: Long) {
         launchAsync {
-            val toUpdate = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
+            val chapters = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
+            val toUpdate = chapters
                 .map {
                     if (downloadPreferences.removeAfterMarkedAsRead.get()) {
                         val manga = getManga.await(mangaId)
@@ -180,6 +184,7 @@ class NotificationReceiver : BroadcastReceiver() {
                     ChapterUpdate(it.id) { read = true }
                 }
             updateChapter.awaitAll(toUpdate)
+            syncWithSource.pushRead(chapters.filterNot { it.read }, read = true)
         }
     }
 

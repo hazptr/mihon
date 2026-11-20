@@ -5,6 +5,7 @@ import eu.kanade.domain.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.domain.chapter.model.toSChapter
 import eu.kanade.domain.manga.model.hasCustomCover
 import eu.kanade.domain.manga.model.toSManga
+import eu.kanade.domain.source.interactor.SyncWithSource
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.source.Source
@@ -31,6 +32,7 @@ class UpdateMangaFromRemote(
     private val chapterRepository: ChapterRepository,
     private val mangaRepository: MangaRepository,
     private val syncChaptersWithSource: SyncChaptersWithSource,
+    private val syncWithSource: SyncWithSource,
     private val coverCache: CoverCache,
     private val libraryPreferences: LibraryPreferences,
     private val downloadManager: DownloadManager,
@@ -77,9 +79,12 @@ class UpdateMangaFromRemote(
                 manualFetch = manualFetch,
                 fetchWindow = fetchWindow,
             )
+            val pulledUrls = if (fetchChapters) syncWithSource.pull(manga, source) else emptySet()
             val updatedManga = mangaRepository.getMangaById(manga.id)
 
-            Result.success(RemoteMangaUpdate(manga = updatedManga, newChapters = newChapters))
+            Result.success(
+                RemoteMangaUpdate(manga = updatedManga, newChapters = newChapters.filterNot { it.url in pulledUrls }),
+            )
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             Result.failure(e)

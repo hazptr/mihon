@@ -17,7 +17,7 @@ import tachiyomi.domain.library.model.LibraryDisplayMode
 @Inject
 @SingleIn(AppScope::class)
 class SourcePreferences(
-    preferenceStore: PreferenceStore,
+    private val preferenceStore: PreferenceStore,
 ) {
 
     val sourceDisplayMode: Preference<LibraryDisplayMode> = preferenceStore.getObjectFromString(
@@ -101,4 +101,7 @@ class SourcePreferences(
         "migration_hide_without_updates",
         false,
     )
+
+    fun syncWithSource(sourceId: Long): Preference<Boolean> =
+        preferenceStore.getBoolean("sync_with_source_$sourceId", true)
 }

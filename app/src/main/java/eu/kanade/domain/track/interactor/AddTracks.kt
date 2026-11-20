@@ -1,6 +1,7 @@
 package eu.kanade.domain.track.interactor
 
 import dev.zacsweers.metro.Inject
+import eu.kanade.domain.source.interactor.SyncWithSource
 import eu.kanade.domain.track.model.toDbTrack
 import eu.kanade.domain.track.model.toDomainTrack
 import eu.kanade.tachiyomi.data.database.models.Track
@@ -25,6 +26,7 @@ class AddTracks(
     private val getChaptersByMangaId: GetChaptersByMangaId,
     private val trackerManager: TrackerManager,
     private val getHistory: GetHistory,
+    private val syncWithSource: SyncWithSource,
 ) {
 
     // TODO: update all trackers based on common data
@@ -72,6 +74,9 @@ class AddTracks(
     }
 
     suspend fun bindEnhancedTrackers(manga: Manga, source: Source) = withContext(Dispatchers.IO) {
+        // Pushed again once the pull knows whether the server keeps favorites
+        syncWithSource.pull(manga, source)
+        syncWithSource.pushFavorite(manga.id, favorite = true)
         trackerManager.loggedInTrackers()
             .filterIsInstance<EnhancedTracker>()
             .filter { it.accept(source) }

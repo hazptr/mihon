@@ -22,6 +22,7 @@ import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.readerOrientation
 import eu.kanade.domain.manga.model.readingMode
 import eu.kanade.domain.source.interactor.GetIncognitoState
+import eu.kanade.domain.source.interactor.SyncWithSource
 import eu.kanade.domain.track.interactor.TrackChapter
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.cache.CoverCache
@@ -119,6 +120,7 @@ class ReaderViewModel(
     private val getNextChapters: GetNextChapters,
     private val upsertHistory: UpsertHistory,
     private val updateChapter: UpdateChapter,
+    private val syncWithSource: SyncWithSource,
     private val setMangaViewerFlags: SetMangaViewerFlags,
     private val getIncognitoState: GetIncognitoState,
     private val libraryPreferences: LibraryPreferences,
@@ -651,7 +653,8 @@ class ReaderViewModel(
 
         if (incognitoMode || page.status is Page.State.Error) return
 
-        val read = readerChapter.chapter.read || readerChapter.pages?.lastIndex == pageIndex
+        val wasRead = readerChapter.chapter.read
+        val read = wasRead || readerChapter.pages?.lastIndex == pageIndex
         // A page change in another chapter would replace that chapter's pending save
         if (pendingProgressChapter != readerChapter) saveChapterProgress()
         readerChapter.update { it.copy(lastPageRead = pageIndex, read = read) }
@@ -659,7 +662,7 @@ class ReaderViewModel(
 
         if (readerChapter.pages?.lastIndex == pageIndex) {
             pendingProgressChapter = null
-            writeChapterProgress(readerChapter, onComplete = true)
+            writeChapterProgress(readerChapter, onComplete = true, wasRead = wasRead)
         } else {
             pendingProgressChapter = readerChapter
             pendingProgressSave = viewModelScope.launch {
@@ -681,11 +684,11 @@ class ReaderViewModel(
     /**
      * Writes the progress of [readerChapter] on the app scope, so it's saved even when the reader is closing.
      */
-    private fun writeChapterProgress(readerChapter: ReaderChapter, onComplete: Boolean) {
+    private fun writeChapterProgress(readerChapter: ReaderChapter, onComplete: Boolean, wasRead: Boolean = true) {
         // Immediate and through the mutex, which is fair, so the writes land in the order they were made
         appScope.launch(Dispatchers.Main.immediate) {
             progressWrites.withLock {
-                if (onComplete) updateChapterProgressOnComplete(readerChapter)
+                if (onComplete) updateChapterProgressOnComplete(readerChapter, wasRead)
 
                 val chapter = readerChapter.chapter
                 updateChapter.await(
@@ -698,27 +701,25 @@ class ReaderViewModel(
         }
     }
 
-    private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter) {
+    private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter, wasRead: Boolean) {
         updateTrackChapterRead(readerChapter)
         deleteChapterIfNeeded(readerChapter)
 
         val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead.get()
             .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_EXISTING)
-        if (!markDuplicateAsRead) return
-
-        val duplicateUnreadChapters = getUnfilteredChapterList()
-            .mapNotNull { chapter ->
-                if (
-                    !chapter.read &&
+        val duplicateUnreadChapters = if (markDuplicateAsRead) {
+            getUnfilteredChapterList().filter { chapter ->
+                !chapter.read &&
                     chapter.isRecognizedNumber &&
                     chapter.chapterNumber == readerChapter.chapter.chapterNumber
-                ) {
-                    ChapterUpdate(chapter.id) { read = true }
-                } else {
-                    null
-                }
             }
-        updateChapter.awaitAll(duplicateUnreadChapters)
+        } else {
+            emptyList()
+        }
+        updateChapter.awaitAll(duplicateUnreadChapters.map { ChapterUpdate(it.id) { read = true } })
+
+        val completed = if (wasRead) emptyList() else listOf(readerChapter.chapter)
+        syncWithSource.pushRead((completed + duplicateUnreadChapters).distinctBy { it.id }, read = true)
     }
 
     fun restartReadTimer() {

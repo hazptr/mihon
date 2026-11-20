@@ -23,6 +23,7 @@ import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.source.interactor.GetIncognitoState
+import eu.kanade.domain.source.interactor.SyncWithSource
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.tachiyomi.data.cache.CoverCache
@@ -78,6 +79,7 @@ class BrowseSourceViewModel(
     private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags,
     private val getManga: GetManga,
     private val updateManga: UpdateManga,
+    private val syncWithSource: SyncWithSource,
     private val addTracks: AddTracks,
     getIncognitoState: GetIncognitoState,
 ) : ViewModel() {
@@ -247,7 +249,7 @@ class BrowseSourceViewModel(
                 MangaUpdate(manga.id) { favoriteAt = Clock.System.now() }
             }
 
-            updateManga.await(update)
+            if (updateManga.await(update)) syncWithSource.pushFavorite(manga.id, !manga.favorite)
         }
     }
 

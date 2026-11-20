@@ -3,6 +3,7 @@ package mihon.domain.migration.usecases
 import dev.zacsweers.metro.Inject
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.hasCustomCover
+import eu.kanade.domain.source.interactor.SyncWithSource
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
@@ -42,6 +43,7 @@ class MigrateMangaUseCase(
     private val upsertTrack: UpsertTrack,
     private val coverCache: CoverCache,
     private val updateMangaFromRemote: UpdateMangaFromRemote,
+    private val syncWithSource: SyncWithSource,
 ) {
     private val enhancedServices by lazy { trackerManager.trackers.filterIsInstance<EnhancedTracker>() }
 
@@ -80,6 +82,14 @@ class MigrateMangaUseCase(
                         }
                     }
                 updateChapter.awaitAll(chapterUpdates)
+                if (maxChapterRead != null) {
+                    syncWithSource.pushRead(
+                        mangaChapters.filter {
+                            !it.read && it.isRecognizedNumber && it.chapterNumber <= maxChapterRead
+                        },
+                        read = true,
+                    )
+                }
             }
 
             // Update categories
@@ -128,7 +138,10 @@ class MigrateMangaUseCase(
                 if (MigrationFlag.NOTES in flags) notes = current.notes
             }
 
-            updateManga.awaitAll(listOfNotNull(currentMangaUpdate, targetMangaUpdate))
+            if (updateManga.awaitAll(listOfNotNull(currentMangaUpdate, targetMangaUpdate))) {
+                if (replace) syncWithSource.pushFavorite(current.id, favorite = false)
+                syncWithSource.pushFavorite(target.id, favorite = true)
+            }
         } catch (e: Throwable) {
             if (e is CancellationException) {
                 throw e
