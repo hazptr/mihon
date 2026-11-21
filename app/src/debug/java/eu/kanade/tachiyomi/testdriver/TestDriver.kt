@@ -19,16 +19,13 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.ui.platform.ViewRootForTest
-import cafe.adriel.voyager.navigator.Navigator
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.extension.model.Extension
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
-import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import kotlinx.coroutines.runBlocking
@@ -56,6 +53,9 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import mihon.app.di.AppGraph
 import mihon.core.metro.GraphProvider
+import mihon.core.navigation.BrowseSourceRoute
+import mihon.core.navigation.MangaRoute
+import mihon.core.navigation.Navigator
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.manga.interactor.GetFavorites
 import tachiyomi.domain.manga.interactor.GetManga
@@ -378,7 +378,11 @@ internal object TestDriver {
                     put("waitedMs", now - start)
                 }
             }
-            if (now - start > timeoutMs) fail(408, "not idle after ${timeoutMs}ms (running HTTP calls: $calls, loading: $loading)")
+            if (now - start >
+                timeoutMs
+            ) {
+                fail(408, "not idle after ${timeoutMs}ms (running HTTP calls: $calls, loading: $loading)")
+            }
             Thread.sleep(50)
         }
     }
@@ -433,8 +437,8 @@ internal object TestDriver {
             put("windows", Semantics.attachedRoots().size)
             if (a is MainActivity) {
                 val nav = navigatorOf(a)
-                nav?.lastItem?.let { put("top", screenJson(it)) }
-                putJsonArray("stack") { nav?.items?.forEach { add(screenJson(it)) } }
+                nav?.routes?.lastOrNull()?.let { put("top", screenJson(it)) }
+                putJsonArray("stack") { nav?.routes?.forEach { add(screenJson(it)) } }
             }
             if (a is ReaderActivity) put("reader", readerState(a))
         }
@@ -504,10 +508,10 @@ internal object TestDriver {
 
     private fun navigate(b: JsonObject): JsonObject {
         when (val to = b.str("to") ?: fail(400, "to required")) {
-            "root" -> mainActivity().let { a -> onMain { navigatorOf(a)!!.popUntilRoot() } }
+            "root" -> mainActivity().let { a -> onMain { navigatorOf(a)!!.popToRoot() } }
             "manga" -> {
                 val id = b.long("mangaId") ?: fail(400, "mangaId required")
-                mainActivity().let { a -> onMain { navigatorOf(a)!!.push(MangaScreen(id)) } }
+                mainActivity().let { a -> onMain { navigatorOf(a)!!.push(MangaRoute(id)) } }
             }
             "browse" -> {
                 val sourceId = b.long("sourceId") ?: fail(400, "sourceId required")
@@ -516,7 +520,7 @@ internal object TestDriver {
                     "latest" -> GetRemoteManga.QUERY_LATEST
                     else -> l
                 }
-                mainActivity().let { a -> onMain { navigatorOf(a)!!.push(BrowseSourceScreen(sourceId, listing)) } }
+                mainActivity().let { a -> onMain { navigatorOf(a)!!.push(BrowseSourceRoute(sourceId, listing)) } }
             }
             "reader" -> {
                 val mangaId = b.long("mangaId") ?: fail(400, "mangaId required")
@@ -552,7 +556,6 @@ internal object TestDriver {
         put("mangaId", s.manga?.id)
         put("mangaTitle", s.manga?.title)
         put("currentPage", s.currentPage)
-        put("viewer", s.viewer?.let { it::class.java.simpleName })
         put("menuVisible", s.menuVisible)
         val chapter = s.viewerChapters?.currChapter
         if (chapter != null) {
