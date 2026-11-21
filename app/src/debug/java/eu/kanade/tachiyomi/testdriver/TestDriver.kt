@@ -24,12 +24,15 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.extension.model.Extension
 import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -80,7 +83,7 @@ import kotlin.concurrent.thread
 internal object TestDriver {
 
     const val SOCKET_NAME = "mihon-testdriver"
-    private const val VERSION = 3
+    private const val VERSION = 4
 
     private lateinit var app: Application
 
@@ -229,6 +232,8 @@ internal object TestDriver {
         "POST /sql" -> sql(b)
         "GET /downloads" -> downloads()
         "POST /downloads/clear" -> clearDownloads()
+        "GET /filters" -> filters(q["sourceId"]?.toLongOrNull() ?: fail(400, "sourceId required"))
+        "POST /cache/chapters" -> clearChapterCache()
         else -> fail(404, "no route $method $path")
     }
 
@@ -861,6 +866,50 @@ internal object TestDriver {
         runBlocking { manager.clearQueue() }
         put("ok", true)
         put("cleared", count)
+    }
+
+    /** The structure of the source's filter list (names, types, Select/Sort options, Group children). */
+    private fun filters(sourceId: Long): JsonArray {
+        val source = runBlocking { graph.sourceManager.get(sourceId) } as? CatalogueSource
+            ?: fail(404, "no catalogue source $sourceId loaded")
+        return filtersJson(source.getFilterList())
+    }
+
+    private fun filtersJson(list: List<Filter<*>>): JsonArray = buildJsonArray {
+        list.forEach { f ->
+            add(
+                buildJsonObject {
+                    put("name", f.name)
+                    put(
+                        "type",
+                        when (f) {
+                            is Filter.Header -> "Header"
+                            is Filter.Separator -> "Separator"
+                            is Filter.Text -> "Text"
+                            is Filter.CheckBox -> "CheckBox"
+                            is Filter.TriState -> "TriState"
+                            is Filter.Select<*> -> "Select"
+                            is Filter.Sort -> "Sort"
+                            is Filter.Group<*> -> "Group"
+                        },
+                    )
+                    when (f) {
+                        is Filter.Select<*> -> putJsonArray("options") {
+                            f.values.forEach { add(JsonPrimitive(it.toString())) }
+                        }
+                        is Filter.Sort -> putJsonArray("options") { f.values.forEach { add(JsonPrimitive(it)) } }
+                        is Filter.Group<*> -> put("children", filtersJson(f.state.filterIsInstance<Filter<*>>()))
+                        else -> Unit
+                    }
+                },
+            )
+        }
+    }
+
+    /** Settings > Data > Clear chapter cache: cached page lists and page images. */
+    private fun clearChapterCache() = buildJsonObject {
+        put("ok", true)
+        put("deleted", runBlocking { graph.chapterCache.clear() })
     }
 
     private fun net() = buildJsonObject {
